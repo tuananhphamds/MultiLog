@@ -23,28 +23,6 @@ def get_num_classes(dataset):
         return len(templates)
     raise Exception('Error in loading number of classes')
 
-def get_feature_size(model_name):
-    """
-    model_name:
-    - all_base:             768
-    - all_distill:          768
-    - all_mini_6:           384
-    - all_mini_12:          384
-    - bert_base:            768
-    - bert_mini:            256
-    - multi_qa:             384
-    - multilingual_base:    768
-    - multilingual_mini:    384
-    """
-    if model_name in ['all_base', 'all_distill', 'bert_base', 'multilingual_base']:
-        return 768
-    elif model_name in ['all_mini_6', 'all_mini_12', 'multi_qa', 'multilingual_mini']:
-        return 384
-    elif model_name in ['bert_mini']:
-        return 256
-    else:
-        raise ValueError(f'Model name {model_name} is not supported')
-
 def load_template_embedding_matrix(num_spec_tokens,
                                    model_name,
                                    dataset,
@@ -73,3 +51,15 @@ def load_template_embedding_matrix(num_spec_tokens,
     for i in range(num_spec_tokens, len(log_template_dict)):
         embedding_matrix[i] = embeddings[str(i - num_spec_tokens + 1)]
     return log_template_dict, embedding_matrix
+
+def generate_log_template_dict(vocab_size):
+    log_template_dict = {
+        'UNK': 0,
+        'PAD': 1,
+        'MASK': 2,
+        'CLS': 3,
+    }
+    num_classes = vocab_size - len(log_template_dict)
+    for i in range(num_classes):
+        log_template_dict[str(i+1)] = len(log_template_dict)
+    return log_template_dict

@@ -1,11 +1,11 @@
 import os
 import sys
 import numpy as np
-import wandb
 
 HOME = os.path.split(os.path.split(os.path.abspath(__file__))[0])[0]
 sys.path.append(HOME + '/preprocess')
 
+from tqdm import tqdm
 from base_model import BaseModel
 from tensorflow.keras.layers import Input, Dense, GlobalAveragePooling1D
 from tensorflow.keras.models import Model
@@ -23,13 +23,13 @@ class NBert(BaseModel):
     def _build_model(self):
         inputs = Input(shape=(self.cfg['window_size'],))
         embeddings = BERTEmbedding(vocab_size=self.cfg['vocab_size'],
-                                   embed_size=self.cfg['embed_size'],
+                                   embed_size=self.cfg['reduction_dim'],
                                    window_size=self.cfg['window_size'],
                                    num_spec_tokens=self.cfg['num_spec_tokens'],
                                    embedding_matrix=self.embedding_matrix,
                                    dropout=self.cfg['dropout'])(inputs)
         trans_encoded = TransformerEncoder(num_blocks=self.cfg['num_blocks'],
-                                           embed_size=self.cfg['embed_size'],
+                                           embed_size=self.cfg['reduction_dim'],
                                            num_heads=self.cfg['num_heads'],
                                            ff_dim=self.cfg['ff_dim'],
                                            window_size=self.cfg['window_size'],
@@ -55,7 +55,7 @@ class NBert(BaseModel):
 
         total_nexts = []
 
-        for batch_data in sub_generator.get_batches():
+        for batch_data in tqdm(sub_generator.get_batches()):
             subseqs = []
             next_labels = []
             for i in range(len(batch_data)):
@@ -82,44 +82,34 @@ class NBert(BaseModel):
         return total_nexts
 
     def _load_model(self, model_file):
-        model = load_model(model_file, custom_objects={
+        model = load_model(os.path.join(self.cfg['result_path'], model_file), custom_objects={
             'TransformerEncoder': TransformerEncoder,
-            'AdamWeightDecay': create_optimizer(num_X_train=1, batch_size=self.cfg['batch_size'], epochs=self.cfg['epochs']),
+            'AdamWeightDecay': create_optimizer(),
             'BERTEmbedding': BERTEmbedding
         })
         return model
 
     def test(self, normal_sess_dct, abnormal_sess_dct, X_val=None, Y_val=None):
-        self.model = self._load_model(os.path.join(self.cfg['result_path'], self.cfg['model_file']))
-
-        # Exclude sessions containing padding keys (0)
-        non_unk_sess_dct = dict()
-        count_unk = 0
-        for key, value in abnormal_sess_dct.items():
-            if 0 not in key:
-                non_unk_sess_dct[key] = value
-            else:
-                count_unk += value
-
-        generator_batch_size = 1024
+        self._load_model(self.cfg['model_file'])
 
         # Calculate scores per session
-        all_normal_scores = self._calculate_scores_all_sessions(normal_sess_dct, generator_batch_size)
-        all_abnormal_scores = self._calculate_scores_all_sessions(non_unk_sess_dct, generator_batch_size)
+        print('Testing normal data')
+        all_normal_scores = self._calculate_scores_all_sessions(normal_sess_dct, self.cfg['generator_batch_size'])
+        print('Testing abnormal data')
+        all_abnormal_scores = self._calculate_scores_all_sessions(abnormal_sess_dct, self.cfg['generator_batch_size'])
 
         normal_scores_per_session, normal_freqs = self._calculate_scores_per_session(normal_sess_dct,
-                                                                                     generator_batch_size,
+                                                                                     self.cfg['generator_batch_size'],
                                                                                      all_normal_scores)
-        abnormal_scores_per_session, abnormal_freqs = self._calculate_scores_per_session(non_unk_sess_dct,
-                                                                                         generator_batch_size,
+        abnormal_scores_per_session, abnormal_freqs = self._calculate_scores_per_session(abnormal_sess_dct,
+                                                                                         self.cfg['generator_batch_size'],
                                                                                          all_abnormal_scores)
 
         # Get best result
         results = self._get_best_results(normal_scores_per_session,
                                          abnormal_scores_per_session,
                                          normal_freqs,
-                                         abnormal_freqs,
-                                         count_unk)
+                                         abnormal_freqs)
 
         print('results: ', results)
         self._save_best_results(results)

@@ -87,65 +87,6 @@ class DataGenerator:
         print('Number of sessions({}): {}'.format(label, len(sessions)))
         return sess_dct
 
-    # def generate_train_val_test(self, anomaly_pct=0.01):
-    #     normal_sessions = []
-    #     abnormal_sessions = []
-    #
-    #     # Get normal, abnormal sessions
-    #     for blk, info in self.block_info.items():
-    #         if info['label'] == 0:
-    #             normal_sessions.append(info['seq'])
-    #         else:
-    #             abnormal_sessions.append(info['seq'])
-    #
-    #     # Shuffle data
-    #     if self.shuffle:
-    #         random.seed(self.random_seed)
-    #         random.shuffle(normal_sessions)
-    #         random.shuffle(abnormal_sessions)
-    #
-    #     # Calculate number of sessions for train, val, and test
-    #     total_normal_sessions = len(normal_sessions)
-    #     n_train = int(total_normal_sessions * self.train_rate / 100)
-    #     n_val = int(total_normal_sessions * self.val_rate / 100)
-    #     n_test = int(total_normal_sessions * self.test_rate / 100)
-    #
-    #     train_sessions = normal_sessions[:n_train]
-    #     test_sessions = normal_sessions[-n_test:]
-    #     if self.val_pos == 'head':
-    #         val_sessions = normal_sessions[n_train:n_train + n_val]
-    #     else:
-    #         val_sessions = normal_sessions[-n_test - n_val:-n_test]
-    #
-    #
-    #     # Insert anomalies to training data
-    #     first_abnormal_sessions = []
-    #     second_abnormal_sessions = []
-    #     for sess in abnormal_sessions:
-    #         if len(sess) <= self.window_size:
-    #             second_abnormal_sessions.append(sess)
-    #         else:
-    #             first_abnormal_sessions.append(sess)
-    #     total_first_anomalies = len(first_abnormal_sessions)
-    #     n_insert = int(total_first_anomalies * anomaly_pct)
-    #     insert_sessions = first_abnormal_sessions[:n_insert]
-    #     print('Number of inserted abnormal sessions', len(insert_sessions))
-    #
-    #
-    #     # Get X_train, Y_train, X_val, Y_val, normal_test_sessions, abnormal_test_sessions
-    #     X_train, Y_train = self._sliding_window(train_sessions + insert_sessions, 'train')
-    #     X_val, Y_val = self._sliding_window(val_sessions, 'val')
-    #
-    #     # Speed up test phrase using unique sessions
-    #     test_sessions_dct = self._get_session_dict(test_sessions, 'normal_test')
-    #     abnormal_sessions_dct = self._get_session_dict(first_abnormal_sessions[n_insert:] + second_abnormal_sessions, 'abnormal_test')
-    #
-    #     return {
-    #         'train': [X_train, Y_train],
-    #         'val': [X_val, Y_val],
-    #         'test': [test_sessions_dct, abnormal_sessions_dct]
-    #     }
-
     def generate_train_val_test(self):
         normal_sessions = []
         abnormal_sessions = []
@@ -157,8 +98,8 @@ class DataGenerator:
             else:
                 abnormal_sessions.append(info['seq'])
 
-        print('\nNumber of normal sessions', len(normal_sessions))
-        print('\nNumber of abnormal sessions', len(abnormal_sessions))
+        print('Number of normal sessions', len(normal_sessions))
+        print('Number of abnormal sessions', len(abnormal_sessions))
         # Shuffle data
         if self.shuffle:
             random.seed(self.random_seed)
@@ -190,50 +131,3 @@ class DataGenerator:
             'val': [X_val, Y_val],
             'test': [test_sessions_dct, abnormal_sessions_dct]
         }
-
-    # def generate_train_val_test(self):
-    #     normal_sessions = []
-    #     abnormal_sessions = []
-    #
-    #     # Get normal, abnormal sessions
-    #     for blk, info in self.block_info.items():
-    #         if info['label'] == 0:
-    #             normal_sessions.append(info['seq'])
-    #         else:
-    #             abnormal_sessions.append(info['seq'])
-    #
-    #
-    #     # Calculate number of sessions for train, val, and test
-    #     total_normal_sessions = len(normal_sessions)
-    #     n_train = int(total_normal_sessions * self.train_rate / 100)
-    #     n_val = int(total_normal_sessions * self.val_rate / 100)
-    #     n_test = int(total_normal_sessions * self.test_rate / 100)
-    #
-    #     test_sessions = normal_sessions[-n_test:]
-    #     normal_sessions = normal_sessions[:(total_normal_sessions-n_test)]
-    #
-    #     # Shuffle data
-    #     if self.shuffle:
-    #         random.seed(self.random_seed)
-    #         random.shuffle(normal_sessions)
-    #
-    #     train_sessions = normal_sessions[:n_train]
-    #
-    #     if self.val_pos == 'head':
-    #         val_sessions = normal_sessions[n_train:n_train + n_val]
-    #     else:
-    #         val_sessions = normal_sessions[-n_val:]
-    #
-    #     # Get X_train, Y_train, X_val, Y_val, normal_test_sessions, abnormal_test_sessions
-    #     X_train, Y_train = self._sliding_window(train_sessions, 'train')
-    #     X_val, Y_val = self._sliding_window(val_sessions, 'val')
-    #
-    #     # Speed up test phrase using unique sessions
-    #     test_sessions_dct = self._get_session_dict(test_sessions, 'normal_test')
-    #     abnormal_sessions_dct = self._get_session_dict(abnormal_sessions, 'abnormal_test')
-    #
-    #     return {
-    #         'train': [X_train, Y_train],
-    #         'val': [X_val, Y_val],
-    #         'test': [test_sessions_dct, abnormal_sessions_dct]
-    #     }

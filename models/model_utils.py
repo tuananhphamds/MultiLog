@@ -1,11 +1,10 @@
 import tensorflow as tf
 from official.nlp import optimization
 from tensorflow.keras.callbacks import Callback
-import wandb
 
-def create_optimizer(num_X_train,
-                     batch_size,
-                     epochs):
+def create_optimizer(num_X_train=10000,
+                     batch_size=512,
+                     epochs=50):
     steps_per_epoch = num_X_train // batch_size
     num_train_steps = steps_per_epoch * epochs
     num_warmup_steps = int(0.1 * num_train_steps)
@@ -67,19 +66,8 @@ class ShowLRate(Callback):
             lr = self.model.optimizer._decayed_lr(tf.float32).numpy()
         except:
             lr = self.model.optimizer.learning_rate
-        #print('Learning rate at epoch {}: {}'.format(epoch, lr))
+        print('Learning rate at epoch {}: {}'.format(epoch, lr))
 
-        # loss', 'mask_out_loss', 'next_out_loss', 'hypersphere_loss', 'mask_out_acc', 'next_out_acc', 'hypersphere_custom_distance'
-        # print(logs['loss'])
-        #wandb.log({
-        #    "loss": logs["loss"],
-        #    "mask_out_loss": logs["mask_out_loss"],
-        #    'next_out_loss': logs["next_out_loss"], 
-        #    'hypersphere_loss': logs["hypersphere_loss"], 
-        #    'mask_out_acc': logs["mask_out_acc"], 
-        #    'next_out_acc': logs["next_out_acc"], 
-        #    'hypersphere_custom_distance': logs["hypersphere_custom_distance"]
-        #})
 
 
     

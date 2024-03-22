@@ -19,8 +19,8 @@ from subsequencegenerator import SubsequenceGenerator
 class BaseModel:
     def __init__(self,
                  cfg,
-                 embedding_matrix,
-                 log_template_dict,
+                 embedding_matrix=None,
+                 log_template_dict=None,
                  hyper_center=None):
         self.cfg = cfg
         self.base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -63,19 +63,8 @@ class BaseModel:
                                 window_size=self.cfg['window_size'],
                                 hyper_center=self.hyper_center,
                                 mask_rate=self.cfg['mask_rate'],
-                                model_name=self.cfg['model_name'],
-                                reduction_dim=self.cfg['reduction_dim'])
+                                model_name=self.cfg['model_name'])
 
-        # val_dataloader = DataLoader(X=X_val,
-        #                             Y=Y_val,
-        #                             batch_size=self.cfg['batch_size'],
-        #                             vocab_size=self.cfg['vocab_size'],
-        #                             log_template_dict=self.log_template_dict,
-        #                             shuffle=True,
-        #                             window_size=self.cfg['window_size'],
-        #                             hyper_center=self.hyper_center,
-        #                             predict_next_only=self.cfg['predict_next_only'],
-        #                             contrastive_learning=self.cfg['contrastive_learning'])
         self._compile(len(X_train))
         history = self.model.fit(dataloader,
                                  epochs=self.cfg['epochs'],
@@ -178,7 +167,7 @@ class BaseModel:
         with open(os.path.join(self.cfg['result_path'], 'scores.pkl'), 'wb') as f:
             pickle.dump(score_dct, f)
 
-    def _get_best_results(self, normal_scores, abnormal_scores, normal_freqs, abnormal_freqs, count_unk):
+    def _get_best_results(self, normal_scores, abnormal_scores, normal_freqs, abnormal_freqs):
         assert type(normal_scores) == list
         assert type(abnormal_scores) == list
         assert type(normal_freqs) == list
@@ -217,24 +206,24 @@ class BaseModel:
                 best_P = P
                 best_TP = TP
 
-        f_TP = best_TP + count_unk
-        f_FP = best_P - best_TP
-        f_FN = tot_anomaly - best_TP
-        f_TN = sum(freqs) - best_P - tot_anomaly + best_TP
-        f_precision = f_TP / (f_TP + f_FP + 1e-5)
-        f_recall = f_TP / (f_TP + f_FN + 1e-5)
-        f_f1 = 2 * f_precision * f_recall / (f_precision + f_recall + 1e-5)
+        TP = best_TP
+        FP = best_P - best_TP
+        FN = tot_anomaly - best_TP
+        TN = sum(freqs) - best_P - tot_anomaly + best_TP
+        precision = TP / (TP + FP + 1e-5)
+        recall = TP / (TP + FN + 1e-5)
+        f1 = 2 * precision * recall / (precision + recall + 1e-5)
 
         return {
             'best_f1': best_f1_res,
-            'u_best_f1': f_f1,
+            'u_best_f1': f1,
             'threshold': threshold,
-            'precision': f_precision,
-            'recall': f_recall,
-            'TP': f_TP,
-            'FP': f_FP,
-            'FN': f_FN,
-            'TN': f_TN
+            'precision': precision,
+            'recall': recall,
+            'TP': TP,
+            'FP': FP,
+            'FN': FN,
+            'TN': TN
         }
 
     def delete_element(self, seq, n, u_idxs):

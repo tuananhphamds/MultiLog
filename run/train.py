@@ -1,26 +1,24 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 import sys
 import re
 import json
-import numpy as np
-import wandb
-from multiprocessing import Process
 
 HOME = os.path.split(os.path.split(os.path.abspath(__file__))[0])[0]
 sys.path.append(HOME + '/preprocess')
 sys.path.append(HOME + '/models')
 
+from optparse import OptionParser
+from datetime import datetime
 from datagenerator import DataGenerator
 from n_bert import NBert
 from pn_bert import PNBert
-from pnh_bert import PNHBert
-from pnh_bert_euclidean import PNHBertEuclidean
-from pnl_bert_euclidean import PNLBertEuclidean
-from pnl_bert_euclidean_average import PNLBertEuclideanAverage
-from utils import get_num_classes, get_feature_size, load_template_embedding_matrix
+from multilog import PNHBert
+from logbert import LogBERT
+from deeplog import DeepLog
+from loganomaly import LogAnomaly
+from utils import get_num_classes, load_template_embedding_matrix, generate_log_template_dict
+from model_config import logbert_config, deeplog_config, loganomaly_config, n_bert_config, pn_bert_config, multilog_config
 from centersphere import CenterSphere
-from datetime import datetime
 
 
 class Trainer:
@@ -30,7 +28,6 @@ class Trainer:
 
         # Create a result directory
         self.cfg['result_path'] = self._create_result_path(self.result_dir)
-        #self.cfg['result_path'] = os.path.join(self.result_dir, '2024_03_19_09_30_31_pnh_bert_multilingual_mini__80__0__20__True_50_2_6_tbird_no_parser/')
 
         # Save model config
         self._save_model_config()
@@ -69,142 +66,88 @@ class Trainer:
         normal_sess_dct, abnormal_sess_dct = split_data['test']
 
         # load log template dict, embedding matrix
-        log_template_dict, embedding_matrix = load_template_embedding_matrix(num_spec_tokens=self.cfg['num_spec_tokens'],
-                                                                             model_name=self.cfg['pretrained_model'],
-                                                                             dataset=self.cfg['dataset'],
-                                                                             reduction_dim=self.cfg['reduction_dim'])
+        if self.cfg['model_name'] not in ['deeplog', 'logbert']:
+            log_template_dict, embedding_matrix = load_template_embedding_matrix(
+                num_spec_tokens=self.cfg['num_spec_tokens'],
+                model_name=self.cfg['pretrained_model'],
+                dataset=self.cfg['dataset'],
+                reduction_dim=self.cfg['reduction_dim'])
+        else:
+            log_template_dict = generate_log_template_dict(self.cfg['vocab_size'])
 
         # Build model
         if self.cfg['model_name'] == 'n_bert':
             model = NBert(self.cfg, embedding_matrix, log_template_dict)
         elif self.cfg['model_name'] == 'pn_bert':
             model = PNBert(self.cfg, embedding_matrix, log_template_dict)
-        elif self.cfg['model_name'] == 'pnh_bert':
+        elif self.cfg['model_name'] == 'multilog':
             csphere = CenterSphere(embedding_matrix=embedding_matrix,
                                    num_vocab=self.cfg['vocab_size'],
                                    window_size=self.cfg['window_size'],
-                                   embed_size=self.cfg['embed_size'],
+                                   embed_size=self.cfg['reduction_dim'],
                                    num_spec_tokens=self.cfg['num_spec_tokens'],
                                    log_template_dict=log_template_dict)
             hyper_center = csphere.calculate_center_sphere(X_train).reshape(1, -1)
             model = PNHBert(self.cfg, embedding_matrix, log_template_dict, hyper_center)
-        elif self.cfg['model_name'] == 'pnh_bert_euclidean':
-            new_train = []
-            for x, y in zip(X_train, Y_train):
-                new_train.append(list(x) + [y])
-            csphere = CenterSphere(embedding_matrix=embedding_matrix,
-                                   num_vocab=self.cfg['vocab_size'],
-                                   window_size=self.cfg['window_size'] + 1,
-                                   embed_size=self.cfg['embed_size'],
-                                   num_spec_tokens=self.cfg['num_spec_tokens'],
-                                   log_template_dict=log_template_dict)
-            hyper_center = csphere.calculate_center_sphere(new_train)
-            model = PNHBertEuclidean(self.cfg, embedding_matrix, log_template_dict, hyper_center)
-        elif self.cfg['model_name'] == 'pnl_bert_euclidean':
-            model = PNLBertEuclidean(self.cfg, embedding_matrix, log_template_dict)
-        elif self.cfg['model_name'] == 'pnl_bert_euclidean_average':
-            model = PNLBertEuclideanAverage(self.cfg, embedding_matrix, log_template_dict)
+        elif self.cfg['model_name'] == 'logbert':
+            model = LogBERT(self.cfg, log_template_dict)
+        elif self.cfg['model_name'] == 'deeplog':
+            model = DeepLog(self.cfg, log_template_dict)
+        elif self.cfg['model_name'] == 'loganomaly':
+            model = LogAnomaly(self.cfg, embedding_matrix, log_template_dict)
 
         model.train(X_train=X_train,
-                 Y_train=Y_train,
-                 X_val=X_val,
-                 Y_val=Y_val)
+                    Y_train=Y_train,
+                    X_val=X_val,
+                    Y_val=Y_val)
 
         model.test(normal_sess_dct, abnormal_sess_dct, X_val=X_val, Y_val=Y_val)
-        #model.test_insert(normal_sess_dct, abnormal_sess_dct, X_val=X_val, Y_val=Y_val)
 
-def run(config, option_name, project):
-    wandb.init(
-                project=project,
-                name=option_name,
-                config=config
-            ) 
-    try:
-        trainer = Trainer(config)
-        trainer.run()
-    except Exception as e:
-        with open('errors.log', 'a', encoding='utf8') as f:
-            f.write('\n\n\nFailed to train model with option {} {}'.format(option_name, str(e)))
-            print('\n\n\nFailed to train model with option {} {}'.format(option_name, str(e)))
-    
-    wandb.finish()
+def parse_options():
+    parser = OptionParser(usage='Training a model')
+    parser.add_option('-d', '--dataset', action='store', type='str', dest='dataset', default='hdfs_drain')
+    parser.add_option('-m', '--model', action='store', type='str', dest='model', default='multilog')
+    parser.add_option('-t', '--train_rate', action='store', type='int', dest='train_rate', default=1)
+    parser.add_option('-e', '--test_rate', action='store', type='int', dest='test_rate', default=20)
+    parser.add_option('-r', '--random_seed', action='store', type='int', dest='random_seed', default=50)
+    parser.add_option('-p', '--epochs', action='store', type='int', dest='epochs', default=50)
+    parser.add_option('-c', '--use_cfg_file', action='store', dest='use_cfg_file', default="True")
 
+    (options, args) = parser.parse_args()
+    return options
 
 if __name__ == "__main__":
     config = {
-        'dataset': 'hdfs_no_parser',
-        'pretrained_model': 'multilingual_mini',
-        'model_name': 'pn_bert',
-        'window_size': 10,
-        'fixed_window': 20,
-        'num_spec_tokens': 4,
+        'dataset': 'hdfs_drain',
+        'model_name': 'deeplog',
         'train_val_test': (80, 0, 20),
-        'val_pos': 'head',
-        'shuffle': True,
-        'random_seed': 50,
-        'top_k': 1,
-        'mask_rate': 0.15,
-        'embed_size': 32,
-        'reduction_dim': 32
+        'num_spec_tokens': 4,
     }
 
-    num_classes = get_num_classes(config['dataset'])
-    config['vocab_size'] = num_classes + config['num_spec_tokens']
-    #config['embed_size'] = get_feature_size(config['pretrained_model'])
-
-    model_config = {
-        'model_file': 'best_model.hdf5',
-        'batch_size': 512,
-        'batch_size_val': 64,
-        'dropout': 0.1,
-        'num_heads': 6,
-        'num_blocks': 2,
-        'ff_dim': 1024,
-        'epochs': 50,
-        'verbose': 1
+    config_mapping = {
+        'logbert': logbert_config,
+        'deeplog': deeplog_config,
+        'loganomaly': loganomaly_config,
+        'n_bert': n_bert_config,
+        'pn_bert': pn_bert_config,
+        'multilog': multilog_config
     }
 
-    if config['model_name'] == 'pn_bert':
-        model_config['loss_weights'] = {
-            'mask_out': 0.5,
-            'next_out': 0.5
-        }
-    elif config['model_name'] in ['pnh_bert']:
-        model_config['loss_weights'] = {
-            'mask_out': 0.5,
-            'next_out': 0.4,
-            'hypersphere': 0.1
-        }
-        config['top_k'] = 1
-    elif config['model_name'] in ['pnh_bert_euclidean', 'pnl_bert_euclidean', 'pnl_bert_euclidean_average']:
-        model_config['loss_weights'] = {
-            'mask_out': 1,
-            'next_out': 1,
-            'contrast_out': 0.1
-        }
-        config['top_k'] = 1
+    options = parse_options()
+    config['dataset'] = options.dataset
+    config['model_name'] = options.model
 
-    config.update(model_config)
+    if config['model_name'] not in config_mapping:
+        raise ValueError('{} is not supported. Only support {}'.format(config['model_name'],
+                                                                       list(config_mapping.keys())))
 
-    #trainer = Trainer(config)
-    #trainer.run()
+    config.update(config_mapping[config['model_name']])
+    config.update({
+        'vocab_size': get_num_classes(config['dataset']) + config['num_spec_tokens']
+    })
 
-    option_name = 'dataset'
-    project = 'training_objectives'
-    options1 = ['pn_bert']
-    options = ['hdfs_no_parser', 
-               'bgl_no_parser', 
-               'tbird_no_parser']
-    for option1 in options1:
-        for option in options:
-            config[option_name] = option
-            config['model_name'] = option1
-            num_classes = get_num_classes(option)
-            config['vocab_size'] = num_classes + config['num_spec_tokens']
-            
-            p = Process(target=run, args=(config, '{}_{}'.format(option_name, option), project))
-            p.start()
-            p.join()
-        
-    
-    
+    trainer = Trainer(config)
+    trainer.run()
+
+
+
