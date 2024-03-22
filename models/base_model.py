@@ -215,8 +215,7 @@ class BaseModel:
         f1 = 2 * precision * recall / (precision + recall + 1e-5)
 
         return {
-            'best_f1': best_f1_res,
-            'u_best_f1': f1,
+            'best_f1': f1,
             'threshold': threshold,
             'precision': precision,
             'recall': recall,

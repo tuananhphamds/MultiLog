@@ -120,7 +120,7 @@ if __name__ == "__main__":
     config = {
         'dataset': 'hdfs_drain',
         'model_name': 'deeplog',
-        'train_val_test': (80, 0, 20),
+        'train_val_test': (1, 0, 20),
         'num_spec_tokens': 4,
     }
 
