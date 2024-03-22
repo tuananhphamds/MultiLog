@@ -52,3 +52,8 @@ Supported models:
 Evaluation results will be saved in `results` folder. Make sure `results` is created.
 Check `best_results.pkl` file for F1, threshold, Precision, Recall, TP, TN, FN, FP.
 
+Paper results:
+![image](https://github.com/tuananhphamds/MultiLog/assets/60763901/9a0452e8-d697-47d0-a1dc-2ce689f8f7e3)
+
+Reevaluate Thunderbird dataset
+![image](https://github.com/tuananhphamds/MultiLog/assets/60763901/d54fa485-ac4d-4dae-b614-9f4041f429d9)
