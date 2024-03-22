@@ -53,7 +53,24 @@ Evaluation results will be saved in `results` folder. Make sure `results` is cre
 Check `best_results.pkl` file for F1, threshold, Precision, Recall, TP, TN, FN, FP.
 
 Paper results:
-![image](https://github.com/tuananhphamds/MultiLog/assets/60763901/9a0452e8-d697-47d0-a1dc-2ce689f8f7e3)
+|                    |    HDFS   |  BGL  | Thunderbird |  Average  |
+|--------------------|:---------:|:-----:|:-----------:|:---------:|
+| _Supervised_       |           |       |             |           |
+| LogRobust          |   99.00   |   -   |      -      |     -     |
+| HitAnomaly         |   98.00   | 92.00 |      -      |     -     |
+| LightLog           |   97.00   | 97.20 |      -      |     -     |
+| NeuralLog          |   98.00   | 98.00 |    96.00    |   97.33   |
+| _Semi-suprervised_ |           |       |             |           |
+| DeepLog*           |   95.05   | 97.86 |    84.64    |   92.51   |
+| LogAnomaly*        |   95.39   | 97.85 |    82.80    |   92.01   |
+| LogBERT*           |   87.17   | 99.01 |    98.88    |   95.02   |
+| LAnoBERT           |   96.45   | 87.49 |  **99.90**  |   94.61   |
+| MultiLog(Next)     | **98.08** | 98.03 |    82.79    |   92.97   |
+| MultiLog(Mask)     |   93.33   | 98.93 |    98.65    | **96.97** |
+| MultiLog(Center)   |   72.05   | 83.26 |    79.52    |   78.28   |
 
-Reevaluate Thunderbird dataset
-![image](https://github.com/tuananhphamds/MultiLog/assets/60763901/d54fa485-ac4d-4dae-b614-9f4041f429d9)
+
+Reevaluation results on Thunderbird dataset
+| Original | Scenario 1 | Scenario 2 |
+|:--------:|:----------:|:----------:|
+|   82.79  |    99.02   |    99.84   |
