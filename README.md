@@ -74,3 +74,5 @@ Reevaluation results on Thunderbird dataset
 | Original | Scenario 1 | Scenario 2 |
 |:--------:|:----------:|:----------:|
 |   82.79  |    99.02   |    99.84   |
+
+Dimension reduction for SBERT embedding is inspired by: [dimensionreduction]([https://link-url-here.org](https://github.com/UKPLab/sentence-transformers/blob/master/examples/training/distillation/dimensionality_reduction.py)https://github.com/UKPLab/sentence-transformers/blob/master/examples/training/distillation/dimensionality_reduction.py)
